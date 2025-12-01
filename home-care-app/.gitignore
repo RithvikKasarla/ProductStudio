@@ -1,3 +1,32 @@
+node_modules
+.next
+.turbo
+.vercel
+dist
+out
+
+# Env & secrets
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# OS / editor junk
+.DS_Store
+*.swp
+*.swo
+.idea
+.vscode
+
+# Test coverage / reports
+coverage
+reports
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies

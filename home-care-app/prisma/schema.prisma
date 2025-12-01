@@ -1,0 +1,195 @@
+// Prisma schema for Home Care Marketplace MVP
+// Backed by a Postgres DATABASE_URL provided via environment variable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  FAMILY
+  CAREGIVER
+}
+
+enum CaregiverType {
+  RN
+  LPN
+  CNA
+  HHA
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CareLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum VisitStatus {
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  zip       String?
+  role      UserRole
+
+  // For family users
+  bookingFor        String? // e.g. "SELF", "PARENT"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  caregiverProfile  CaregiverProfile?
+  intakeRequests    IntakeRequest[]
+  bookingsAsFamily  Booking[]        @relation("FamilyBookings")
+  bookingsAsNurse   Booking[]        @relation("CaregiverBookings")
+}
+
+model CaregiverProfile {
+  id                 String              @id @default(cuid())
+  user               User                @relation(fields: [userId], references: [id])
+  userId             String              @unique
+
+  caregiverType      CaregiverType
+  yearsExperience    Int?
+  hourlyRate         Int?                // store in cents for precision
+  skills             String[]            // e.g. ["Meals", "Mobility", "Dementia Care"]
+  languages          String[]            // e.g. ["EN", "ES"]
+  boroughsServed     String[]            // e.g. ["Manhattan", "Brooklyn"]
+  travelRadiusMiles  Int?                // simple radius around ZIP
+  verificationStatus VerificationStatus  @default(PENDING)
+  verificationNote   String?
+
+  bio                String?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  availabilitySlots  AvailabilitySlot[]
+  bookings           Booking[]          @relation("CaregiverProfileBookings")
+}
+
+model IntakeRequest {
+  id           String     @id @default(cuid())
+  user         User       @relation(fields: [userId], references: [id])
+  userId       String
+
+  whoNeedsCare String
+  age          Int?
+  mobility     String?     // raw label from UI
+  tasks        String[]    // selected tasks
+
+  // Simple schedule representation for MVP
+  startDate    DateTime?
+  endDate      DateTime?
+  hoursPerDay  Int?
+  timeSlot     String?     // e.g. "9a-1p"
+
+  zip          String?
+  address      String?
+
+  careLevel    CareLevel?  // computed triage
+  status       String      @default("OPEN")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bookings     Booking[]
+}
+
+model AvailabilitySlot {
+  id                String           @id @default(cuid())
+  caregiverProfile  CaregiverProfile @relation(fields: [caregiverProfileId], references: [id])
+  caregiverProfileId String
+
+  // Weekly recurring pattern
+  dayOfWeek        Int              // 0 (Sunday) - 6 (Saturday)
+  startMinutes     Int              // minutes from midnight
+  endMinutes       Int
+
+  isActive         Boolean          @default(true)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bookings         Booking[]
+}
+
+model Booking {
+  id                String           @id @default(cuid())
+
+  intake            IntakeRequest    @relation(fields: [intakeId], references: [id])
+  intakeId          String
+
+  family            User             @relation("FamilyBookings", fields: [familyId], references: [id])
+  familyId          String
+
+  caregiverProfile  CaregiverProfile @relation("CaregiverProfileBookings", fields: [caregiverProfileId], references: [id])
+  caregiverProfileId String
+
+  // Denormalized convenience
+  caregiverUser     User             @relation("CaregiverBookings", fields: [caregiverUserId], references: [id])
+  caregiverUserId   String
+
+  startTime         DateTime
+  endTime           DateTime
+  totalHours        Int
+
+  hourlyRateCents   Int
+  totalPriceCents   Int
+
+  bookingStatus     BookingStatus   @default(PENDING)
+  paymentStatus     PaymentStatus   @default(UNPAID)
+
+  visitStatus       VisitStatus?    // current status
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  visitEvents       VisitEvent[]
+
+  availabilitySlot  AvailabilitySlot? @relation(fields: [availabilitySlotId], references: [id])
+  availabilitySlotId String?
+}
+
+model VisitEvent {
+  id          String      @id @default(cuid())
+  booking     Booking     @relation(fields: [bookingId], references: [id])
+  bookingId   String
+
+  status      VisitStatus
+  at          DateTime    @default(now())
+  note        String?
+}
+
+

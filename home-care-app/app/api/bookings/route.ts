@@ -130,6 +130,7 @@ export async function GET(req: NextRequest) {
       caregiverProfile: {
         include: { user: true },
       },
+      intake: true,
     },
   });
 

@@ -5,6 +5,45 @@ import { prisma } from "@/lib/prisma";
 
 type ParamsPromise = Promise<{ id: string }>;
 
+export async function GET(
+  req: NextRequest,
+  context: { params: ParamsPromise }
+) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const bookingId = id;
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      caregiverProfile: {
+        include: { user: true },
+      },
+      intake: true,
+    },
+  });
+
+  if (!booking) {
+    return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+
+  // Check ownership
+  const isFamily = booking.familyId === session.user.id;
+  const isCaregiver = booking.caregiverUserId === session.user.id;
+
+  if (!isFamily && !isCaregiver) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  return NextResponse.json({ booking });
+}
+
+
 export async function PATCH(
   req: NextRequest,
   context: { params: ParamsPromise }

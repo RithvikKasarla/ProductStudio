@@ -55,16 +55,16 @@ export default function Navbar() {
           {isFamily && (
             <>
               <Link
-                href="/user/intake"
-                className="text-secondary hover:text-primary font-medium transition-colors"
-              >
-                My Intake
-              </Link>
-              <Link
                 href="/user/matching"
                 className="text-secondary hover:text-primary font-medium transition-colors"
               >
-                My Matches
+                Find Care
+              </Link>
+              <Link
+                href="/user/dashboard"
+                className="text-secondary hover:text-primary font-medium transition-colors"
+              >
+                My Bookings
               </Link>
             </>
           )}

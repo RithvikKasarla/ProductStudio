@@ -28,7 +28,7 @@ export default async function Home() {
               We pair families with verified, background-checked caregivers. Clear pricing, gentle design, and constant visit visibility.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link href={isFamily ? '/user/intake' : '/user/intake'}>
+              <Link href={isFamily ? '/user/matching' : '/user/intake'}>
                 <Button size="lg">
                   {isFamily ? 'Continue finding care' : 'Find Care Now'}
                 </Button>
@@ -270,9 +270,9 @@ export default async function Home() {
             <p className="text-blue-100 text-lg">Soft neutrals, clear steps, and verified caregivers make booking care feel calm.</p>
           </div>
           <div className="flex gap-3">
-            <Link href="/user/intake">
+            <Link href={isFamily ? '/user/matching' : '/user/intake'}>
               <Button size="lg" className="bg-white text-primary hover:bg-gray-100">
-                {isFamily ? 'Go to your intake' : 'Start Intake'}
+                {isFamily ? 'Go to your matches' : 'Start Intake'}
               </Button>
             </Link>
             {!isFamily && (

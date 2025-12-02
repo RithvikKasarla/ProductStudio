@@ -17,7 +17,7 @@ export default function NurseSignup() {
     const [phone, setPhone] = useState('');
     const [licenseType, setLicenseType] = useState<'RN' | 'LPN' | 'CNA' | 'HHA'>('RN');
     const [password, setPassword] = useState('');
-    const [hourlyRate, setHourlyRate] = useState('');
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,8 +25,6 @@ export default function NurseSignup() {
         setError(null);
 
         try {
-            const rateNumber = hourlyRate ? parseInt(hourlyRate, 10) : undefined;
-
             const res = await fetch('/api/auth/signup/nurse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -36,7 +34,6 @@ export default function NurseSignup() {
                     phone,
                     licenseType,
                     password,
-                    hourlyRate: rateNumber,
                 }),
             });
 
@@ -110,14 +107,6 @@ export default function NurseSignup() {
                                 <option value="HHA">Home Health Aide (HHA)</option>
                             </select>
                         </div>
-
-                        <Input
-                            label="Hourly rate (optional)"
-                            type="number"
-                            placeholder="e.g. 45"
-                            value={hourlyRate}
-                            onChange={(e) => setHourlyRate(e.target.value)}
-                        />
 
                         <Input
                             label="Password"

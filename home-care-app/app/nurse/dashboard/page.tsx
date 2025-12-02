@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 
@@ -12,15 +13,21 @@ type BookingJob = {
     schedule: string;
     tasks: string;
     distance: string;
+    title: string;
 };
 
 export default function NurseDashboard() {
+    const { data: session } = useSession();
     const [activeTab, setActiveTab] = useState('requests');
     const [jobs, setJobs] = useState<BookingJob[]>([]);
     const [scheduleJobs, setScheduleJobs] = useState<BookingJob[]>([]);
     const [acceptedJobs, setAcceptedJobs] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const userName = session?.user?.name || 'Caregiver';
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`;
+
 
     const fetchJobs = async () => {
         setLoading(true);
@@ -70,6 +77,7 @@ export default function NurseDashboard() {
                     schedule,
                     tasks,
                     distance: 'Nearby',
+                    title: 'New Care Request',
                 };
             };
 
@@ -132,9 +140,9 @@ export default function NurseDashboard() {
                 <div className="container mx-auto flex justify-between items-center">
                     <h1 className="font-bold text-xl tracking-tight text-primary">CareConnect <span className="text-secondary font-normal">Provider</span></h1>
                     <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-secondary">Sarah Jenkins</span>
+                        <span className="text-sm font-medium text-secondary">{userName}</span>
                         <div className="w-10 h-10 bg-gray-200 rounded-full border-2 border-white shadow-sm overflow-hidden">
-                            <img src="https://ui-avatars.com/api/?name=Sarah+Jenkins&background=0D8ABC&color=fff" alt="Profile" />
+                            <img src={avatarUrl} alt="Profile" />
                         </div>
                     </div>
                 </div>
@@ -250,7 +258,7 @@ export default function NurseDashboard() {
                                             </span>
                                         </div>
 
-                                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
+                                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 mb-4">
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                 <div>
                                                     <p className="text-xs text-secondary uppercase tracking-wider font-bold mb-1">Patient</p>
@@ -266,6 +274,14 @@ export default function NurseDashboard() {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <Button
+                                            fullWidth
+                                            onClick={() => window.location.href = `/nurse/session/${job.id}`}
+                                            className="bg-green-600 hover:bg-green-700 border-green-600"
+                                        >
+                                            Start Session
+                                        </Button>
                                     </Card>
                                 ))}
                             </div>

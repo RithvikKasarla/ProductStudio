@@ -76,6 +76,12 @@ export default function MatchingResults() {
                 router.push('/user/confirmation');
                 return;
             }
+
+            const data = await res.json();
+            if (data.booking?.id) {
+                router.push(`/user/confirmation?bookingId=${data.booking.id}`);
+                return;
+            }
         } catch {
             // Swallow error for now; still give the confirmation experience
         }
@@ -222,4 +228,3 @@ export default function MatchingResults() {
         </main>
     );
 }
-

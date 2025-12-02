@@ -60,7 +60,16 @@ export async function GET(req: NextRequest) {
         score >= 70 ? "High" : score >= 40 ? "Medium" : "Low";
 
       const yearsExperience = cg.yearsExperience ?? undefined;
-      const hourlyRate = cg.hourlyRate ?? 45;
+      let hourlyRate = cg.hourlyRate;
+      if (!hourlyRate) {
+        switch (cg.caregiverType) {
+          case "RN": hourlyRate = 110; break;
+          case "LPN": hourlyRate = 90; break;
+          case "CNA": hourlyRate = 70; break;
+          case "HHA": hourlyRate = 60; break;
+          default: hourlyRate = 60;
+        }
+      }
 
       return {
         id: cg.id,

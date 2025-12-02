@@ -9,8 +9,17 @@ const nurseSignupSchema = z.object({
   phone: z.string().min(5),
   licenseType: z.enum(["RN", "LPN", "CNA", "HHA"]),
   password: z.string().min(6),
-  hourlyRate: z.number().int().positive().optional(),
 });
+
+function getRateForLicense(type: "RN" | "LPN" | "CNA" | "HHA") {
+  switch (type) {
+    case "RN": return 110;
+    case "LPN": return 90;
+    case "CNA": return 70;
+    case "HHA": return 60;
+    default: return 60;
+  }
+}
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -26,8 +35,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, email, phone, licenseType, password, hourlyRate } =
-    parseResult.data;
+  const { name, email, phone, licenseType, password } = parseResult.data;
 
   const existing = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
@@ -41,6 +49,7 @@ export async function POST(request: Request) {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  const hourlyRate = getRateForLicense(licenseType);
 
   const user = await prisma.user.create({
     data: {
@@ -52,7 +61,7 @@ export async function POST(request: Request) {
       caregiverProfile: {
         create: {
           caregiverType: licenseType,
-          hourlyRate: hourlyRate ?? null,
+          hourlyRate,
           skills: [],
           languages: [],
           boroughsServed: [],

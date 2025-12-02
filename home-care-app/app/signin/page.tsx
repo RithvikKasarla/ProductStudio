@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -11,20 +12,44 @@ export default function SignIn() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'family' | 'nurse'>('family');
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
 
-    const handleSignIn = (e: React.FormEvent) => {
+    const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setError(null);
 
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
-            if (activeTab === 'family') {
-                router.push('/user/intake');
-            } else {
-                router.push('/nurse/dashboard');
+        try {
+            const result = await signIn('credentials', {
+                redirect: false,
+                email,
+                password,
+            });
+
+            if (result?.error) {
+                setError('Invalid email or password.');
+                setIsLoading(false);
+                return;
             }
-        }, 1500);
+
+            // Route based on actual role, regardless of selected tab
+            const sessionRes = await fetch('/api/auth/session');
+            const sessionData = await sessionRes.json();
+
+            const role = sessionData?.user?.role as 'FAMILY' | 'CAREGIVER' | undefined;
+
+            if (role === 'CAREGIVER') {
+                router.push('/nurse/dashboard');
+            } else {
+                router.push('/user/intake');
+            }
+        } catch (err) {
+            setError('Unexpected error. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -55,7 +80,13 @@ export default function SignIn() {
                     <form onSubmit={handleSignIn} className="flex flex-col gap-4">
                         <div>
                             <label className="block text-sm font-bold text-primary mb-1.5">Email Address</label>
-                            <Input placeholder="name@example.com" type="email" required />
+                            <Input
+                                placeholder="name@example.com"
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
                         </div>
 
                         <div>
@@ -65,8 +96,20 @@ export default function SignIn() {
                                     Forgot?
                                 </Link>
                             </div>
-                            <Input placeholder="••••••••" type="password" required />
+                            <Input
+                                placeholder="••••••••"
+                                type="password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
                         </div>
+
+                        {error && (
+                            <p className="text-sm text-error">
+                                {error}
+                            </p>
+                        )}
 
                         <div className="mt-4">
                             <Button fullWidth loading={isLoading} size="lg">

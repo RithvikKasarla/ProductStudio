@@ -1,9 +1,16 @@
 import Link from 'next/link';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import Button from './components/Button';
 import Card from './components/Card';
 import TrustBadge from './components/TrustBadge';
 
-export default function Home() {
+export default async function Home() {
+  const session = await getServerSession(authOptions);
+  const role = session?.user?.role as 'FAMILY' | 'CAREGIVER' | undefined;
+  const isLoggedIn = !!session;
+  const isFamily = role === 'FAMILY';
+
   return (
     <main className="page-wrapper">
       {/* Hero Section */}
@@ -21,12 +28,16 @@ export default function Home() {
               We pair families with verified, background-checked caregivers. Clear pricing, gentle design, and constant visit visibility.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link href="/user/intake">
-                <Button size="lg">Find Care Now</Button>
+              <Link href={isFamily ? '/user/matching' : '/user/intake'}>
+                <Button size="lg">
+                  {isFamily ? 'Continue finding care' : 'Find Care Now'}
+                </Button>
               </Link>
-              <Link href="/nurse/signup">
-                <Button variant="secondary" size="lg">Apply as a Caregiver</Button>
-              </Link>
+              {!isLoggedIn && (
+                <Link href="/nurse/signup">
+                  <Button variant="secondary" size="lg">Apply as a Caregiver</Button>
+                </Link>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-2">
@@ -259,14 +270,22 @@ export default function Home() {
             <p className="text-blue-100 text-lg">Soft neutrals, clear steps, and verified caregivers make booking care feel calm.</p>
           </div>
           <div className="flex gap-3">
-            <Link href="/user/intake">
-              <Button size="lg" className="bg-white text-primary hover:bg-gray-100">Start Intake</Button>
-            </Link>
-            <Link href="/nurse/signup">
-              <Button size="lg" variant="secondary" className="bg-white/15 text-white border border-white/30 hover:bg-white/25">
-                Join as Caregiver
+            <Link href={isFamily ? '/user/matching' : '/user/intake'}>
+              <Button size="lg" className="bg-white text-primary hover:bg-gray-100">
+                {isFamily ? 'Go to your matches' : 'Start Intake'}
               </Button>
             </Link>
+            {!isFamily && (
+              <Link href="/nurse/signup">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="bg-white/15 text-white border border-white/30 hover:bg-white/25"
+                >
+                  Join as Caregiver
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </section>

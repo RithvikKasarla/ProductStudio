@@ -41,3 +41,24 @@ body {
 .trust-badge {
   @apply inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F8C471]/15 text-[#B7791F] rounded-full text-xs font-semibold tracking-wide uppercase;
 }
+
+/* Accessibility & contrast overrides */
+:root {
+  --cc-text-primary: #111827; /* near-black */
+  --cc-text-secondary: #4B5563; /* slate */
+  --cc-background: #F4F4F8;
+}
+
+body {
+  color: var(--cc-text-primary);
+  background-color: var(--cc-background);
+  line-height: 1.6;
+}
+
+.text-primary {
+  color: var(--cc-text-primary);
+}
+
+.text-secondary {
+  color: var(--cc-text-secondary);
+}

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Card from '../../components/Card';
@@ -9,13 +10,53 @@ import Card from '../../components/Card';
 export default function NurseSignup() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [licenseType, setLicenseType] = useState<'RN' | 'LPN' | 'CNA' | 'HHA'>('RN');
+    const [password, setPassword] = useState('');
+
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setTimeout(() => {
+        setError(null);
+
+        try {
+            const res = await fetch('/api/auth/signup/nurse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    phone,
+                    licenseType,
+                    password,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data?.error ?? 'Something went wrong while creating your account.');
+                setLoading(false);
+                return;
+            }
+
+            await signIn('credentials', {
+                redirect: false,
+                email,
+                password,
+            });
+
             router.push('/nurse/profile');
-        }, 1000);
+        } catch (err) {
+            setError('Unexpected error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -28,19 +69,59 @@ export default function NurseSignup() {
 
                 <Card padding>
                     <form onSubmit={handleSubmit}>
-                        <Input label="Full Name" placeholder="Jane Doe" required />
-                        <Input label="Email" type="email" placeholder="jane@example.com" required />
-                        <Input label="Phone" type="tel" placeholder="(555) 123-4567" required />
+                        <Input
+                            label="Full Name"
+                            placeholder="Jane Doe"
+                            required
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                        />
+                        <Input
+                            label="Email"
+                            type="email"
+                            placeholder="jane@example.com"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                        <Input
+                            label="Phone"
+                            type="tel"
+                            placeholder="(555) 123-4567"
+                            required
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                        />
 
                         <div className="mb-4">
                             <label className="text-sm font-medium text-secondary block mb-2">I am a...</label>
-                            <select className="w-full p-3 rounded-lg border border-gray-300" style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
-                                <option>Registered Nurse (RN)</option>
-                                <option>Licensed Practical Nurse (LPN)</option>
-                                <option>Certified Nursing Assistant (CNA)</option>
-                                <option>Home Health Aide (HHA)</option>
+                            <select
+                                className="w-full p-3 rounded-lg border border-gray-300"
+                                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--color-border)' }}
+                                value={licenseType}
+                                onChange={(e) => setLicenseType(e.target.value as 'RN' | 'LPN' | 'CNA' | 'HHA')}
+                            >
+                                <option value="RN">Registered Nurse (RN)</option>
+                                <option value="LPN">Licensed Practical Nurse (LPN)</option>
+                                <option value="CNA">Certified Nursing Assistant (CNA)</option>
+                                <option value="HHA">Home Health Aide (HHA)</option>
                             </select>
                         </div>
+
+                        <Input
+                            label="Password"
+                            type="password"
+                            placeholder="Create a password"
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+
+                        {error && (
+                            <p className="text-sm text-error mt-1">
+                                {error}
+                            </p>
+                        )}
 
                         <div style={{ marginTop: '24px' }}>
                             <Button fullWidth type="submit" disabled={loading}>

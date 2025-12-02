@@ -1,70 +1,137 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 
-export default function NurseDashboard() {
-    const [activeTab, setActiveTab] = useState('requests');
-    const [jobs, setJobs] = useState([
-        {
-            id: 1,
-            title: 'Short-term Care Needed',
-            location: 'Manhattan, NY (Upper West Side)',
-            rate: '$30/hr',
-            patient: '78yo Female, Mobility Assistance',
-            schedule: 'Tomorrow, 9:00 AM - 1:00 PM',
-            tasks: 'Meal Prep, Medication, Companionship',
-            distance: '1.2 miles'
-        },
-        {
-            id: 2,
-            title: 'Post-Op Recovery Support',
-            location: 'Brooklyn, NY (Williamsburg)',
-            rate: '$35/hr',
-            patient: '45yo Male, Knee Surgery Recovery',
-            schedule: 'Nov 12 - Nov 14, 2:00 PM - 6:00 PM',
-            tasks: 'Mobility, Physical Therapy Exercises',
-            distance: '3.5 miles'
-        },
-        {
-            id: 3,
-            title: 'Weekend Companion',
-            location: 'Queens, NY (Astoria)',
-            rate: '$28/hr',
-            patient: '82yo Male, Mild Dementia',
-            schedule: 'Sat & Sun, 10:00 AM - 4:00 PM',
-            tasks: 'Companionship, Light Housekeeping',
-            distance: '4.0 miles'
-        },
-        {
-            id: 4,
-            title: 'Overnight Monitoring',
-            location: 'Manhattan, NY (Tribeca)',
-            rate: '$40/hr',
-            patient: '60yo Female, Post-Hospitalization',
-            schedule: 'Tonight, 8:00 PM - 8:00 AM',
-            tasks: 'Vitals Monitoring, Assistance',
-            distance: '2.1 miles'
-        },
-        {
-            id: 5,
-            title: 'Daily Living Assistance',
-            location: 'Brooklyn, NY (Park Slope)',
-            rate: '$32/hr',
-            patient: '70yo Female, Arthritis',
-            schedule: 'Mon-Fri, 9:00 AM - 12:00 PM',
-            tasks: 'Bathing, Dressing, Meal Prep',
-            distance: '2.8 miles'
-        }
-    ]);
-    const [acceptedJobs, setAcceptedJobs] = useState<number[]>([]);
+type BookingJob = {
+    id: string;
+    location: string;
+    rate: string;
+    patient: string;
+    schedule: string;
+    tasks: string;
+    distance: string;
+    title: string;
+};
 
-    const handleAccept = (id: number) => {
-        setAcceptedJobs([...acceptedJobs, id]);
-        setTimeout(() => {
-            setJobs(jobs.filter(job => job.id !== id));
-        }, 600); // Wait for animation
+export default function NurseDashboard() {
+    const { data: session } = useSession();
+    const [activeTab, setActiveTab] = useState('requests');
+    const [jobs, setJobs] = useState<BookingJob[]>([]);
+    const [scheduleJobs, setScheduleJobs] = useState<BookingJob[]>([]);
+    const [acceptedJobs, setAcceptedJobs] = useState<string[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const userName = session?.user?.name || 'Caregiver';
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0D8ABC&color=fff`;
+
+
+    const fetchJobs = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const [pendingRes, upcomingRes] = await Promise.all([
+                fetch('/api/bookings?scope=pending'),
+                fetch('/api/bookings?scope=upcoming'),
+            ]);
+
+            const pendingData = await pendingRes.json();
+            const upcomingData = await upcomingRes.json();
+
+            if (!pendingRes.ok) {
+                setError(pendingData?.error ?? 'Unable to load new requests.');
+                setLoading(false);
+                return;
+            }
+
+            const mapBookingToJob = (booking: any): BookingJob => {
+                const hourly = booking.hourlyRateCents / 100;
+                const start = new Date(booking.startTime);
+                const end = new Date(booking.endTime);
+                const schedule = `${start.toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                })}, ${start.toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                })} - ${end.toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                })}`;
+
+                const tasks = (booking.intake?.tasks ?? []).join(', ') || 'General support';
+                const location = booking.intake?.zip
+                    ? `NYC • ${booking.intake.zip}`
+                    : 'New York City';
+
+                return {
+                    id: booking.id as string,
+                    location,
+                    rate: `$${hourly}/hr`,
+                    patient: booking.intake?.whoNeedsCare
+                        ? `${booking.intake.whoNeedsCare}, Home care`
+                        : 'Home care visit',
+                    schedule,
+                    tasks,
+                    distance: 'Nearby',
+                    title: 'New Care Request',
+                };
+            };
+
+            const pending = (pendingData.bookings ?? []).map(mapBookingToJob);
+            const upcoming = (upcomingData.bookings ?? []).map(mapBookingToJob);
+
+            setJobs(pending);
+            setScheduleJobs(upcoming);
+        } catch {
+            setError('Unexpected error while loading your requests.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        void fetchJobs();
+    }, []);
+
+    const handleAccept = async (id: string) => {
+        setAcceptedJobs((prev) => [...prev, id]);
+        try {
+            const res = await fetch(`/api/bookings/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'ACCEPTED' }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setError(data?.error ?? 'Unable to accept job right now.');
+            }
+        } catch {
+            setError('Unable to accept job. Please try again.');
+        } finally {
+            void fetchJobs();
+        }
+    };
+
+    const handleDecline = async (id: string) => {
+        try {
+            const res = await fetch(`/api/bookings/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'DECLINED' }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setError(data?.error ?? 'Unable to decline job right now.');
+            }
+        } catch {
+            setError('Unable to decline job. Please try again.');
+        } finally {
+            void fetchJobs();
+        }
     };
 
     return (
@@ -73,9 +140,9 @@ export default function NurseDashboard() {
                 <div className="container mx-auto flex justify-between items-center">
                     <h1 className="font-bold text-xl tracking-tight text-primary">CareConnect <span className="text-secondary font-normal">Provider</span></h1>
                     <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-secondary">Sarah Jenkins</span>
+                        <span className="text-sm font-medium text-secondary">{userName}</span>
                         <div className="w-10 h-10 bg-gray-200 rounded-full border-2 border-white shadow-sm overflow-hidden">
-                            <img src="https://ui-avatars.com/api/?name=Sarah+Jenkins&background=0D8ABC&color=fff" alt="Profile" />
+                            <img src={avatarUrl} alt="Profile" />
                         </div>
                     </div>
                 </div>
@@ -101,7 +168,11 @@ export default function NurseDashboard() {
 
                 {activeTab === 'requests' && (
                     <div className="flex flex-col gap-6">
-                        {jobs.length === 0 ? (
+                        {loading ? (
+                            <p className="text-secondary">Loading new requests…</p>
+                        ) : error ? (
+                            <p className="text-error">{error}</p>
+                        ) : jobs.length === 0 ? (
                             <div className="text-center py-20 text-secondary animate-fade-in">
                                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
                                 <h3 className="text-xl font-bold mb-2">All Caught Up!</h3>
@@ -146,8 +217,8 @@ export default function NurseDashboard() {
                                         </div>
 
                                         <div className="flex gap-4">
-                                            <Button fullWidth onClick={() => handleAccept(job.id)}>Accept Job</Button>
-                                            <Button fullWidth variant="outline">Decline</Button>
+                                            <Button fullWidth onClick={() => void handleAccept(job.id)}>Accept Job</Button>
+                                            <Button fullWidth variant="outline" onClick={() => void handleDecline(job.id)}>Decline</Button>
                                         </div>
                                     </Card>
                                 </div>
@@ -157,10 +228,64 @@ export default function NurseDashboard() {
                 )}
 
                 {activeTab === 'schedule' && (
-                    <div className="text-center py-20 text-secondary animate-fade-in">
-                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
-                        <h3 className="text-xl font-bold mb-2">No Upcoming Jobs</h3>
-                        <p>Accept new requests to fill your schedule.</p>
+                    <div className="animate-fade-in">
+                        {loading ? (
+                            <div className="text-center py-20 text-secondary">
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+                                <h3 className="text-xl font-bold mb-2">Loading your schedule…</h3>
+                            </div>
+                        ) : scheduleJobs.length === 0 ? (
+                            <div className="text-center py-20 text-secondary">
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+                                <h3 className="text-xl font-bold mb-2">No Upcoming Jobs</h3>
+                                <p>Accept new requests to fill your schedule.</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-6">
+                                {scheduleJobs.map((job) => (
+                                    <Card key={job.id} padding hoverEffect className="animate-slide-up">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h3 className="font-bold text-xl mb-1 text-primary">Confirmed Visit</h3>
+                                                <div className="flex items-center gap-2 text-secondary text-sm">
+                                                    <span>📍 {job.location}</span>
+                                                    <span>•</span>
+                                                    <span>{job.distance}</span>
+                                                </div>
+                                            </div>
+                                            <span className="bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-lg font-bold border border-blue-100">
+                                                {job.rate}
+                                            </span>
+                                        </div>
+
+                                        <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 mb-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div>
+                                                    <p className="text-xs text-secondary uppercase tracking-wider font-bold mb-1">Patient</p>
+                                                    <p className="font-medium">{job.patient}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-secondary uppercase tracking-wider font-bold mb-1">Schedule</p>
+                                                    <p className="font-medium">{job.schedule}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-secondary uppercase tracking-wider font-bold mb-1">Tasks</p>
+                                                    <p className="font-medium">{job.tasks}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <Button
+                                            fullWidth
+                                            onClick={() => window.location.href = `/nurse/session/${job.id}`}
+                                            className="bg-green-600 hover:bg-green-700 border-green-600"
+                                        >
+                                            Start Session
+                                        </Button>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

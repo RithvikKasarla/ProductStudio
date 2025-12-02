@@ -39,9 +39,9 @@ export default function SignIn() {
             const role = session?.user?.role as 'FAMILY' | 'CAREGIVER' | undefined;
 
             if (role === 'CAREGIVER') {
-                router.push('/nurse/dashboard');
+                window.location.href = '/nurse/dashboard';
             } else {
-                router.push('/user/intake');
+                window.location.href = '/user/intake';
             }
         } catch (err) {
             setError('Unexpected error. Please try again.');

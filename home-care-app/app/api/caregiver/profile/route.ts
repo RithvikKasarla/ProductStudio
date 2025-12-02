@@ -12,6 +12,7 @@ export async function GET() {
 
   const profile = await prisma.caregiverProfile.findUnique({
     where: { userId: session.user.id },
+    include: { availabilitySlots: true },
   });
 
   return NextResponse.json({ profile });
@@ -25,9 +26,14 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { yearsExperience, skills } = body as {
+  const { yearsExperience, skills, availabilitySlots } = body as {
     yearsExperience?: number;
     skills?: string[];
+    availabilitySlots?: {
+      dayOfWeek: number;
+      startMinutes: number;
+      endMinutes: number;
+    }[];
   };
 
   const profile = await prisma.caregiverProfile.findUnique({
@@ -41,6 +47,13 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  // If availabilitySlots is provided, replace existing ones
+  if (availabilitySlots) {
+    await prisma.availabilitySlot.deleteMany({
+      where: { caregiverProfileId: profile.id },
+    });
+  }
+
   const updated = await prisma.caregiverProfile.update({
     where: { userId: session.user.id },
     data: {
@@ -48,6 +61,14 @@ export async function PATCH(req: NextRequest) {
         typeof yearsExperience === "number" ? yearsExperience : profile.yearsExperience,
       skills: Array.isArray(skills) ? skills : profile.skills,
       verificationStatus: "APPROVED",
+      availabilitySlots: availabilitySlots
+        ? {
+          create: availabilitySlots,
+        }
+        : undefined,
+    },
+    include: {
+      availabilitySlots: true,
     },
   });
 

@@ -6,13 +6,30 @@ import Button from '../../components/Button';
 import Input from '../../components/Input';
 import Card from '../../components/Card';
 
+type AvailabilitySlot = {
+    dayOfWeek: number;
+    startMinutes: number;
+    endMinutes: number;
+};
+
 type Profile = {
     yearsExperience?: number | null;
     skills: string[];
     verificationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+    availabilitySlots?: AvailabilitySlot[];
 };
 
 const SPECIALTIES = ['Dementia Care', 'Post-Op', 'Wound Care', 'Physical Therapy', 'Palliative Care'];
+
+const DAYS = [
+    { label: 'Mon', value: 1 },
+    { label: 'Tue', value: 2 },
+    { label: 'Wed', value: 3 },
+    { label: 'Thu', value: 4 },
+    { label: 'Fri', value: 5 },
+    { label: 'Sat', value: 6 },
+    { label: 'Sun', value: 0 },
+];
 
 export default function ProfileSetup() {
     const router = useRouter();
@@ -23,6 +40,14 @@ export default function ProfileSetup() {
     const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Availability state: map of day value -> { start: string, end: string, active: boolean }
+    const [availability, setAvailability] = useState<Record<number, { start: string; end: string; active: boolean }>>(
+        DAYS.reduce((acc, day) => ({
+            ...acc,
+            [day.value]: { start: '09:00', end: '17:00', active: false }
+        }), {})
+    );
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -44,6 +69,30 @@ export default function ProfileSetup() {
                     }
                     if (p.verificationStatus === 'APPROVED') {
                         setUploadStatus('success');
+                    }
+
+                    if (p.availabilitySlots && p.availabilitySlots.length > 0) {
+                        const newAvailability = { ...availability };
+                        // Reset all to inactive first? Or just merge?
+                        // Let's reset to default first to be safe, but keep default times if not present
+                        // Actually, better to just iterate slots and update.
+
+                        p.availabilitySlots.forEach(slot => {
+                            const startH = Math.floor(slot.startMinutes / 60);
+                            const startM = slot.startMinutes % 60;
+                            const endH = Math.floor(slot.endMinutes / 60);
+                            const endM = slot.endMinutes % 60;
+
+                            const startStr = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
+                            const endStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
+                            newAvailability[slot.dayOfWeek] = {
+                                start: startStr,
+                                end: endStr,
+                                active: true
+                            };
+                        });
+                        setAvailability(newAvailability);
                     }
                 }
             } catch {
@@ -70,6 +119,20 @@ export default function ProfileSetup() {
         );
     };
 
+    const handleDayToggle = (dayValue: number) => {
+        setAvailability(prev => ({
+            ...prev,
+            [dayValue]: { ...prev[dayValue], active: !prev[dayValue].active }
+        }));
+    };
+
+    const handleTimeChange = (dayValue: number, field: 'start' | 'end', value: string) => {
+        setAvailability(prev => ({
+            ...prev,
+            [dayValue]: { ...prev[dayValue], [field]: value }
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -77,12 +140,28 @@ export default function ProfileSetup() {
 
         try {
             const years = yearsExperience ? parseInt(yearsExperience, 10) : undefined;
+
+            // Transform availability to slots
+            const availabilitySlots = Object.entries(availability)
+                .filter(([_, config]) => config.active)
+                .map(([dayStr, config]) => {
+                    const dayOfWeek = parseInt(dayStr);
+                    const [startH, startM] = config.start.split(':').map(Number);
+                    const [endH, endM] = config.end.split(':').map(Number);
+                    return {
+                        dayOfWeek,
+                        startMinutes: startH * 60 + startM,
+                        endMinutes: endH * 60 + endM,
+                    };
+                });
+
             const res = await fetch('/api/caregiver/profile', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     yearsExperience: years,
                     skills: selectedSkills,
+                    availabilitySlots,
                 }),
             });
             const data = await res.json();
@@ -214,6 +293,42 @@ export default function ProfileSetup() {
                                         <Input label="Please specify other specialties" placeholder="e.g. Pediatric Care, Oncology..." />
                                     </div>
                                 )}
+                            </div>
+                        </div>
+
+                        <div className="mb-8">
+                            <h3 className="font-bold mb-4 text-lg">Availability</h3>
+                            <div className="space-y-2">
+                                {DAYS.map((day) => (
+                                    <div key={day.value} className="flex items-center gap-2">
+                                        <label className="flex items-center gap-2 w-20">
+                                            <input
+                                                type="checkbox"
+                                                checked={availability[day.value].active}
+                                                onChange={() => handleDayToggle(day.value)}
+                                                className="accent-primary"
+                                            />
+                                            <span className="text-sm">{day.label}</span>
+                                        </label>
+                                        {availability[day.value].active && (
+                                            <div className="flex items-center gap-1 flex-1">
+                                                <input
+                                                    type="time"
+                                                    value={availability[day.value].start}
+                                                    onChange={(e) => handleTimeChange(day.value, 'start', e.target.value)}
+                                                    className="p-1 border rounded text-sm w-full"
+                                                />
+                                                <span className="text-xs text-secondary">-</span>
+                                                <input
+                                                    type="time"
+                                                    value={availability[day.value].end}
+                                                    onChange={(e) => handleTimeChange(day.value, 'end', e.target.value)}
+                                                    className="p-1 border rounded text-sm w-full"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
 

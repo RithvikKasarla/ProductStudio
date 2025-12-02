@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Input from '../components/Input';
@@ -35,10 +35,8 @@ export default function SignIn() {
             }
 
             // Route based on actual role, regardless of selected tab
-            const sessionRes = await fetch('/api/auth/session');
-            const sessionData = await sessionRes.json();
-
-            const role = sessionData?.user?.role as 'FAMILY' | 'CAREGIVER' | undefined;
+            const session = await getSession();
+            const role = session?.user?.role as 'FAMILY' | 'CAREGIVER' | undefined;
 
             if (role === 'CAREGIVER') {
                 router.push('/nurse/dashboard');

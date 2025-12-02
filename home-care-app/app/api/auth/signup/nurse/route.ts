@@ -9,6 +9,11 @@ const nurseSignupSchema = z.object({
   phone: z.string().min(5),
   licenseType: z.enum(["RN", "LPN", "CNA", "HHA"]),
   password: z.string().min(6),
+  availabilitySlots: z.array(z.object({
+    dayOfWeek: z.number(),
+    startMinutes: z.number(),
+    endMinutes: z.number(),
+  })).optional(),
 });
 
 function getRateForLicense(type: "RN" | "LPN" | "CNA" | "HHA") {
@@ -35,7 +40,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, email, phone, licenseType, password } = parseResult.data;
+  const { name, email, phone, licenseType, password, availabilitySlots } = parseResult.data;
 
   const existing = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
@@ -65,6 +70,9 @@ export async function POST(request: Request) {
           skills: [],
           languages: [],
           boroughsServed: [],
+          availabilitySlots: {
+            create: availabilitySlots ?? [],
+          },
         },
       },
     },

@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
   const caregivers = await prisma.caregiverProfile.findMany({
     include: {
       user: true,
+      availabilitySlots: true,
     },
   });
 
@@ -82,6 +83,7 @@ export async function GET(req: NextRequest) {
         languages: cg.languages,
         matchScore: score,
         matchLabel,
+        availabilitySlots: cg.availabilitySlots,
       };
     })
     .sort((a, b) => b.matchScore - a.matchScore)

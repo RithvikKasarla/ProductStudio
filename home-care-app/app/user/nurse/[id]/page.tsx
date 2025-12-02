@@ -15,6 +15,11 @@ type NurseProfile = {
     hourlyRate?: number | null;
     languages: string[];
     bio?: string | null;
+    availabilitySlots?: {
+        dayOfWeek: number;
+        startMinutes: number;
+        endMinutes: number;
+    }[];
 };
 
 export default function NurseProfileDetails() {
@@ -54,6 +59,7 @@ export default function NurseProfileDetails() {
                     hourlyRate: found.hourlyRate ?? null,
                     languages: found.languages ?? [],
                     bio: found.bio ?? null,
+                    availabilitySlots: found.availabilitySlots ?? [],
                 });
             } catch {
                 setError('Unexpected error while loading caregiver profile.');
@@ -112,6 +118,34 @@ export default function NurseProfileDetails() {
         : 'Experience shared at booking';
 
     const languages = nurse.languages.length > 0 ? nurse.languages : ['English'];
+
+    // Helper to check if a day is available
+    // Days are 0 (Sun) - 6 (Sat) in DB
+    // UI displays M T W T F S S
+    // Map UI index 0 (Mon) -> 1, 1 (Tue) -> 2, ..., 5 (Sat) -> 6, 6 (Sun) -> 0
+    const isDayAvailable = (uiIndex: number) => {
+        const dbDay = uiIndex === 6 ? 0 : uiIndex + 1;
+        return nurse.availabilitySlots?.some(slot => slot.dayOfWeek === dbDay);
+    };
+
+    const getDayTimeRange = (uiIndex: number) => {
+        const dbDay = uiIndex === 6 ? 0 : uiIndex + 1;
+        const slot = nurse.availabilitySlots?.find(slot => slot.dayOfWeek === dbDay);
+        if (!slot) return null;
+
+        const startH = Math.floor(slot.startMinutes / 60);
+        const startM = slot.startMinutes % 60;
+        const endH = Math.floor(slot.endMinutes / 60);
+        const endM = slot.endMinutes % 60;
+
+        const formatTime = (h: number, m: number) => {
+            const ampm = h >= 12 ? 'pm' : 'am';
+            const h12 = h % 12 || 12;
+            return `${h12}:${m.toString().padStart(2, '0')}${ampm}`;
+        };
+
+        return `${formatTime(startH, startM)} - ${formatTime(endH, endM)}`;
+    };
 
     return (
         <main className="page-wrapper pb-24 bg-background">
@@ -244,12 +278,45 @@ export default function NurseProfileDetails() {
                                 </h3>
                                 <div className="mb-8">
                                     <p className="text-sm font-bold text-secondary mb-3 uppercase tracking-wide">Availability</p>
-                                    <div className="flex gap-2 justify-between">
-                                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-                                            <div key={i} className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${[0, 1, 2, 4].includes(i) ? 'bg-primary text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
-                                                {day}
-                                            </div>
-                                        ))}
+                                    <div className="flex gap-2 justify-between mb-4">
+                                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => {
+                                            const available = isDayAvailable(i);
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${available ? 'bg-primary text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}
+                                                    title={available ? getDayTimeRange(i) ?? '' : 'Unavailable'}
+                                                >
+                                                    {day}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="text-xs text-secondary">
+                                        {nurse.availabilitySlots && nurse.availabilitySlots.length > 0 ? (
+                                            <ul className="space-y-1">
+                                                {nurse.availabilitySlots.map(slot => {
+                                                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                                    const startH = Math.floor(slot.startMinutes / 60);
+                                                    const startM = slot.startMinutes % 60;
+                                                    const endH = Math.floor(slot.endMinutes / 60);
+                                                    const endM = slot.endMinutes % 60;
+                                                    const formatTime = (h: number, m: number) => {
+                                                        const ampm = h >= 12 ? 'pm' : 'am';
+                                                        const h12 = h % 12 || 12;
+                                                        return `${h12}:${m.toString().padStart(2, '0')}${ampm}`;
+                                                    };
+                                                    return (
+                                                        <li key={slot.dayOfWeek} className="flex justify-between">
+                                                            <span>{days[slot.dayOfWeek]}</span>
+                                                            <span>{formatTime(startH, startM)} - {formatTime(endH, endM)}</span>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        ) : (
+                                            <p>No availability listed.</p>
+                                        )}
                                     </div>
                                 </div>
                                 <Button fullWidth size="lg" onClick={() => router.push('/user/confirmation')}>

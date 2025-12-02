@@ -33,6 +33,8 @@ export default function IntakeFlow() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [selectedDay, setSelectedDay] =
     useState<(typeof DAY_OPTIONS)[number]>('Tomorrow');
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('17:00');
   const [hoursPerDay, setHoursPerDay] = useState<string>('');
   const [zip, setZip] = useState<string>('10001');
 
@@ -94,15 +96,15 @@ export default function IntakeFlow() {
         const data = await res.json();
         const intake = data.intake as
           | {
-              id: string;
-              whoNeedsCare?: string | null;
-              age?: number | null;
-              mobility?: string | null;
-              tasks?: string[];
-              hoursPerDay?: number | null;
-              zip?: string | null;
-              timeSlot?: string | null;
-            }
+            id: string;
+            whoNeedsCare?: string | null;
+            age?: number | null;
+            mobility?: string | null;
+            tasks?: string[];
+            hoursPerDay?: number | null;
+            zip?: string | null;
+            timeSlot?: string | null;
+          }
           | null;
         if (!intake) return;
 
@@ -114,8 +116,27 @@ export default function IntakeFlow() {
         if (typeof intake.hoursPerDay === 'number')
           setHoursPerDay(String(intake.hoursPerDay));
         if (intake.zip) setZip(intake.zip);
-        if (intake.timeSlot && DAY_OPTIONS.includes(intake.timeSlot as any)) {
-          setSelectedDay(intake.timeSlot as (typeof DAY_OPTIONS)[number]);
+
+        if (intake.timeSlot) {
+          // Try to parse "Day Start-End"
+          // e.g. "Tomorrow 09:00-17:00"
+          // or just "Tomorrow" (legacy)
+          const parts = intake.timeSlot.split(' ');
+          // Check if the first part is a known day option (might be multi-word like "Wed 15")
+          // This is a bit fragile but works for MVP if format is consistent.
+          // Actually DAY_OPTIONS has "Wed 15", so it's 2 words.
+
+          // Let's try to find the day in the string.
+          const foundDay = DAY_OPTIONS.find(d => intake.timeSlot?.startsWith(d));
+          if (foundDay) {
+            setSelectedDay(foundDay);
+            const rest = intake.timeSlot.slice(foundDay.length).trim();
+            if (rest) {
+              const [s, e] = rest.split('-');
+              if (s) setStartTime(s);
+              if (e) setEndTime(e);
+            }
+          }
         }
       } catch {
         // fail silently; user can still complete intake
@@ -176,7 +197,7 @@ export default function IntakeFlow() {
       tasks: selectedTasks,
       hoursPerDay: hoursPerDay ? Number(hoursPerDay) : undefined,
       zip: zip || undefined,
-      timeSlot: selectedDay,
+      timeSlot: `${selectedDay} ${startTime}-${endTime}`,
     };
     const saved = await saveIntake(payload);
     if (saved) {
@@ -221,11 +242,10 @@ export default function IntakeFlow() {
                 {['Self', 'Parent', 'Spouse', 'Other Relative'].map((option) => (
                   <button
                     key={option}
-                    className={`text-left p-5 rounded-2xl border bg-background transition-all hover:border-primary hover:shadow-sm flex items-center justify-between group ${
-                      whoNeedsCare === option
+                    className={`text-left p-5 rounded-2xl border bg-background transition-all hover:border-primary hover:shadow-sm flex items-center justify-between group ${whoNeedsCare === option
                         ? 'border-primary'
                         : 'border-border'
-                    }`}
+                      }`}
                     type="button"
                     disabled={loading}
                     onClick={() => void handleSelectWhoNeedsCare(option)}
@@ -271,9 +291,8 @@ export default function IntakeFlow() {
                   ].map((level) => (
                     <label
                       key={level}
-                      className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all bg-background ${
-                        mobility === level ? 'border-primary' : 'border-border'
-                      }`}
+                      className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all bg-background ${mobility === level ? 'border-primary' : 'border-border'
+                        }`}
                     >
                       <input
                         type="radio"
@@ -326,11 +345,10 @@ export default function IntakeFlow() {
                 {TASK_OPTIONS.map((task) => (
                   <label
                     key={task}
-                    className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all bg-background ${
-                      selectedTasks.includes(task)
+                    className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all bg-background ${selectedTasks.includes(task)
                         ? 'border-primary'
                         : 'border-border'
-                    }`}
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -383,11 +401,10 @@ export default function IntakeFlow() {
                     <button
                       key={day}
                       type="button"
-                      className={`px-5 py-2.5 rounded-full border text-sm font-semibold whitespace-nowrap transition-all ${
-                        selectedDay === day
+                      className={`px-5 py-2.5 rounded-full border text-sm font-semibold whitespace-nowrap transition-all ${selectedDay === day
                           ? 'bg-primary text-white border-primary shadow-md'
                           : 'bg-white text-secondary border-border hover:border-primary/50'
-                      }`}
+                        }`}
                       onClick={() =>
                         setSelectedDay(day as (typeof DAY_OPTIONS)[number])
                       }
@@ -396,6 +413,28 @@ export default function IntakeFlow() {
                     </button>
                   ))}
                 </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="text-sm font-medium text-secondary block mb-2">Start Time</label>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full p-3 rounded-lg border border-gray-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-secondary block mb-2">End Time</label>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full p-3 rounded-lg border border-gray-300"
+                    />
+                  </div>
+                </div>
+
                 <Input
                   label="Hours needed"
                   type="number"

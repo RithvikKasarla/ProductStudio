@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -19,7 +19,7 @@ type CaregiverMatch = {
     matchLabel: 'High' | 'Medium' | 'Low';
 };
 
-export default function MatchingResults() {
+function MatchingResultsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [matches, setMatches] = useState<CaregiverMatch[]>([]);
@@ -226,5 +226,19 @@ export default function MatchingResults() {
                 )}
             </div>
         </main>
+    );
+}
+
+export default function MatchingResults() {
+    return (
+        <Suspense fallback={
+            <main className="page-wrapper bg-background py-8">
+                <div className="container mx-auto max-w-4xl text-center">
+                    <p className="text-secondary">Loading matches...</p>
+                </div>
+            </main>
+        }>
+            <MatchingResultsContent />
+        </Suspense>
     );
 }

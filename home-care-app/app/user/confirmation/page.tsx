@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Button from '../../components/Button';
@@ -23,7 +23,7 @@ type BookingDetails = {
   totalPriceCents: number;
 };
 
-export default function BookingConfirmation() {
+function BookingConfirmationContent() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const [booking, setBooking] = useState<BookingDetails | null>(null);
@@ -171,5 +171,19 @@ export default function BookingConfirmation() {
         </Card>
       </div>
     </main>
+  );
+}
+
+export default function BookingConfirmation() {
+  return (
+    <Suspense fallback={
+      <main className="page-wrapper justify-center items-center bg-background py-10">
+        <div className="container mx-auto max-w-lg text-center">
+          <p className="text-secondary">Loading...</p>
+        </div>
+      </main>
+    }>
+      <BookingConfirmationContent />
+    </Suspense>
   );
 }

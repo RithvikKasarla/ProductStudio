@@ -25,6 +25,7 @@ export default function NurseSignup() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    const [zip, setZip] = useState('');
     const [licenseType, setLicenseType] = useState<'RN' | 'LPN' | 'CNA' | 'HHA'>('RN');
     const [password, setPassword] = useState('');
 
@@ -77,6 +78,7 @@ export default function NurseSignup() {
                     name,
                     email,
                     phone,
+                    zip: zip || undefined,
                     licenseType,
                     password,
                     availabilitySlots,
@@ -137,6 +139,14 @@ export default function NurseSignup() {
                             required
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
+                        />
+                        <Input
+                            label="ZIP Code"
+                            placeholder="10001"
+                            required
+                            value={zip}
+                            onChange={(e) => setZip(e.target.value)}
+                            maxLength={5}
                         />
 
                         <div className="mb-4">

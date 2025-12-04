@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -33,8 +33,10 @@ const DAYS = [
 
 export default function ProfileSetup() {
     const router = useRouter();
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'verifying' | 'success'>('idle');
+    const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
     const [showOtherSpecialty, setShowOtherSpecialty] = useState(false);
     const [yearsExperience, setYearsExperience] = useState('');
     const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
@@ -103,14 +105,41 @@ export default function ProfileSetup() {
         void loadProfile();
     }, []);
 
-    const handleFileUpload = () => {
+    const handleFileInputClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Store file name for display
+        setUploadedFileName(file.name);
         setUploadStatus('uploading');
-        setTimeout(() => {
-            setUploadStatus('verifying');
+
+        // Read the file to simulate actual upload
+        const reader = new FileReader();
+        reader.onload = () => {
+            // File has been "uploaded" (read into memory)
+            // Now run the verification simulation
             setTimeout(() => {
-                setUploadStatus('success');
-            }, 2000);
-        }, 1500);
+                setUploadStatus('verifying');
+                setTimeout(() => {
+                    setUploadStatus('success');
+                    // Clear the file input and file data (simulating deletion)
+                    if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                    }
+                    // Clear the file from memory by letting it go out of scope
+                    // The actual file data from reader.result is not stored
+                }, 2000);
+            }, 1500);
+        };
+        reader.onerror = () => {
+            setError('Failed to read the file. Please try again.');
+            setUploadStatus('idle');
+        };
+        reader.readAsDataURL(file);
     };
 
     const toggleSkill = (skill: string) => {
@@ -214,22 +243,31 @@ export default function ProfileSetup() {
                         <div className="mb-8">
                             <h3 className="font-bold mb-4 text-lg">Upload Documents</h3>
 
+                            {/* Hidden file input */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                onChange={handleFileChange}
+                                style={{ display: 'none' }}
+                            />
+
                             {uploadStatus === 'idle' && !isComplete && (
                                 <div
                                     className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center transition-all hover:border-primary cursor-pointer bg-gray-50"
                                     style={{ border: '2px dashed var(--color-border)', padding: '40px', borderRadius: 'var(--radius-md)', backgroundColor: '#f9f9f9' }}
-                                    onClick={handleFileUpload}
+                                    onClick={handleFileInputClick}
                                 >
                                     <div style={{ fontSize: '32px', marginBottom: '16px' }}>📄</div>
                                     <p className="font-medium mb-2">Upload Government ID & License</p>
-                                    <p className="text-secondary text-sm mb-4">Drag & drop or click to browse</p>
+                                    <p className="text-secondary text-sm mb-4">Click to browse or select a file</p>
                                     <Button type="button" variant="outline" size="sm">Browse Files</Button>
                                 </div>
                             )}
 
                             {uploadStatus === 'uploading' && (
                                 <div className="p-8 text-center bg-gray-50 rounded-xl">
-                                    <p className="font-medium mb-4">Uploading...</p>
+                                    <p className="font-medium mb-2">Uploading{uploadedFileName ? `: ${uploadedFileName}` : '...'}</p>
                                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                         <div className="bg-primary h-full rounded-full" style={{ width: '60%', backgroundColor: 'var(--color-primary)', transition: 'width 2s ease' }}></div>
                                     </div>

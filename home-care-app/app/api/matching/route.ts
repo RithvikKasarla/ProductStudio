@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { scoreCaregiverForIntake } from "@/lib/matching/scoreCaregiver";
+import { estimateZipDistance } from "@/lib/matching/zipDistance";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  const userZip = intake.zip;
+
   const scored = caregivers
     .map((cg) => {
       const score = scoreCaregiverForIntake(intake!, cg);
@@ -72,6 +75,9 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      // Calculate distance from user's location
+      const distance = estimateZipDistance(userZip, cg.user.zip);
+
       return {
         id: cg.id,
         userId: cg.userId,
@@ -84,9 +90,17 @@ export async function GET(req: NextRequest) {
         matchScore: score,
         matchLabel,
         availabilitySlots: cg.availabilitySlots,
+        zip: cg.user.zip,
+        distance,
       };
     })
-    .sort((a, b) => b.matchScore - a.matchScore)
+    // Sort by distance first (closest), then by match score (highest)
+    .sort((a, b) => {
+      if (a.distance !== b.distance) {
+        return a.distance - b.distance;
+      }
+      return b.matchScore - a.matchScore;
+    })
     .slice(0, 5);
 
   return NextResponse.json({
@@ -94,5 +108,3 @@ export async function GET(req: NextRequest) {
     intakeId: intake.id,
   });
 }
-
-

@@ -15,6 +15,7 @@ type NurseProfile = {
     hourlyRate?: number | null;
     languages: string[];
     bio?: string | null;
+    zip?: string | null;
     availabilitySlots?: {
         dayOfWeek: number;
         startMinutes: number;
@@ -28,6 +29,8 @@ export default function NurseProfileDetails() {
     const [nurse, setNurse] = useState<NurseProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [intakeId, setIntakeId] = useState<string | null>(null);
+    const [booking, setBooking] = useState(false);
 
     useEffect(() => {
         const loadNurse = async () => {
@@ -44,6 +47,7 @@ export default function NurseProfileDetails() {
                 }
 
                 const allCaregivers = (data.caregivers ?? []) as any[];
+                setIntakeId(data.intakeId ?? null);
                 const found = allCaregivers.find((c) => c.id === params.id);
                 if (!found) {
                     setError('Caregiver not found.');
@@ -59,6 +63,7 @@ export default function NurseProfileDetails() {
                     hourlyRate: found.hourlyRate ?? null,
                     languages: found.languages ?? [],
                     bio: found.bio ?? null,
+                    zip: found.zip ?? null,
                     availabilitySlots: found.availabilitySlots ?? [],
                 });
             } catch {
@@ -70,6 +75,39 @@ export default function NurseProfileDetails() {
 
         void loadNurse();
     }, [params.id]);
+
+    const handleBook = async () => {
+        if (!nurse) return;
+        setBooking(true);
+
+        if (!intakeId) {
+            router.push('/user/payment');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ intakeId, caregiverProfileId: nurse.id }),
+            });
+
+            if (!res.ok) {
+                router.push('/user/payment');
+                return;
+            }
+
+            const data = await res.json();
+            if (data.booking?.id) {
+                router.push(`/user/payment?bookingId=${data.booking.id}`);
+                return;
+            }
+        } catch {
+            // Swallow error; still proceed to payment
+        }
+
+        router.push('/user/payment');
+    };
 
     const renderRoleLabel = (caregiverType: NurseProfile['caregiverType']) => {
         switch (caregiverType) {
@@ -173,6 +211,11 @@ export default function NurseProfileDetails() {
                         </p>
                         <div className="flex items-center gap-3">
                             <TrustBadge label="Verified License" />
+                            {nurse.zip && (
+                                <span className="flex items-center gap-1 text-sm font-medium text-secondary">
+                                    📍 {nurse.zip}
+                                </span>
+                            )}
                             <span className="flex items-center gap-1 text-sm font-bold text-primary">
                                 ⭐ 4.8 <span className="text-secondary font-normal">(10+ reviews)</span>
                             </span>
@@ -319,8 +362,8 @@ export default function NurseProfileDetails() {
                                         )}
                                     </div>
                                 </div>
-                                <Button fullWidth size="lg" onClick={() => router.push('/user/confirmation')}>
-                                    Book This Caregiver
+                                <Button fullWidth size="lg" onClick={() => void handleBook()} disabled={booking}>
+                                    {booking ? 'Booking...' : 'Book This Caregiver'}
                                 </Button>
                                 <p className="text-xs text-center text-secondary mt-4">You won&apos;t be charged yet</p>
                             </Card>
@@ -337,8 +380,8 @@ export default function NurseProfileDetails() {
                         <span className="text-xs text-secondary">Total est. $180</span>
                     </div>
                     <div className="flex-1">
-                        <Button fullWidth onClick={() => router.push('/user/confirmation')}>
-                            Book Now
+                        <Button fullWidth onClick={() => void handleBook()} disabled={booking}>
+                            {booking ? 'Booking...' : 'Book Now'}
                         </Button>
                     </div>
                 </div>

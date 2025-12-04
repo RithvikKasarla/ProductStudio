@@ -7,6 +7,7 @@ const nurseSignupSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   phone: z.string().min(5),
+  zip: z.string().length(5).regex(/^\d{5}$/).optional(),
   licenseType: z.enum(["RN", "LPN", "CNA", "HHA"]),
   password: z.string().min(6),
   availabilitySlots: z.array(z.object({
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, email, phone, licenseType, password, availabilitySlots } = parseResult.data;
+  const { name, email, phone, zip, licenseType, password, availabilitySlots } = parseResult.data;
 
   const existing = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       name,
       email: email.toLowerCase(),
       phone,
+      zip,
       password: hashedPassword,
       role: "CAREGIVER",
       caregiverProfile: {

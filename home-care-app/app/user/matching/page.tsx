@@ -60,7 +60,7 @@ function MatchingResultsContent() {
 
     const handleBook = async (caregiverProfileId: string) => {
         if (!intakeId) {
-            router.push('/user/confirmation');
+            router.push('/user/payment');
             return;
         }
 
@@ -72,21 +72,21 @@ function MatchingResultsContent() {
             });
 
             if (!res.ok) {
-                // For MVP, just proceed to confirmation even if booking API fails
-                router.push('/user/confirmation');
+                // For MVP, just proceed to payment even if booking API fails
+                router.push('/user/payment');
                 return;
             }
 
             const data = await res.json();
             if (data.booking?.id) {
-                router.push(`/user/confirmation?bookingId=${data.booking.id}`);
+                router.push(`/user/payment?bookingId=${data.booking.id}`);
                 return;
             }
         } catch {
-            // Swallow error for now; still give the confirmation experience
+            // Swallow error for now; still give the payment experience
         }
 
-        router.push('/user/confirmation');
+        router.push('/user/payment');
     };
 
     const renderRoleLabel = (caregiverType: CaregiverMatch['caregiverType']) => {

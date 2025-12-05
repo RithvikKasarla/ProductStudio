@@ -46,6 +46,13 @@ function MatchingResultsContent() {
                     return;
                 }
 
+                if (!data.intakeId) {
+                    // No intake yet – send the family back to the intake flow to provide details
+                    setLoading(false);
+                    router.push('/user/intake');
+                    return;
+                }
+
                 setMatches(data.caregivers ?? []);
                 setIntakeId(data.intakeId ?? null);
             } catch {
@@ -107,8 +114,19 @@ function MatchingResultsContent() {
     return (
         <main className="page-wrapper bg-background py-8">
             <div className="container mx-auto max-w-4xl">
-                <h1 className="text-3xl font-bold mb-2 text-primary">Verified caregivers nearby</h1>
-                <p className="text-secondary mb-8">We surface 3–5 best fits. Verification and skill match come first.</p>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div>
+                        <h1 className="text-3xl font-bold mb-2 text-primary">Verified caregivers nearby</h1>
+                        <p className="text-secondary">We surface 3–5 best fits. Verification and skill match come first.</p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push('/user/intake')}
+                    >
+                        Edit care needs
+                    </Button>
+                </div>
 
                 {error && (
                     <p className="text-sm text-error mb-4">

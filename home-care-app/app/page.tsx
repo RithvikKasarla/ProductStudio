@@ -10,6 +10,19 @@ export default async function Home() {
   const role = session?.user?.role as 'FAMILY' | 'CAREGIVER' | undefined;
   const isLoggedIn = !!session;
   const isFamily = role === 'FAMILY';
+  const isCaregiver = role === 'CAREGIVER';
+
+  const primaryCtaHref = (() => {
+    if (isFamily) return '/user/intake';
+    if (isCaregiver) return '/nurse/dashboard';
+    return '/user/intake';
+  })();
+
+  const primaryCtaLabel = (() => {
+    if (isFamily) return 'Find Care';
+    if (isCaregiver) return 'Go to Dashboard';
+    return 'Find Care Now';
+  })();
 
   return (
     <main className="page-wrapper">
@@ -28,9 +41,9 @@ export default async function Home() {
               We pair families with verified, background-checked caregivers. Clear pricing, gentle design, and constant visit visibility.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link href={isFamily ? '/user/matching' : '/user/intake'}>
+              <Link href={primaryCtaHref}>
                 <Button size="lg">
-                  {isFamily ? 'Continue finding care' : 'Find Care Now'}
+                  {primaryCtaLabel}
                 </Button>
               </Link>
               {!isLoggedIn && (

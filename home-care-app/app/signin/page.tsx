@@ -34,15 +34,9 @@ export default function SignIn() {
                 return;
             }
 
-            // Route based on actual role, regardless of selected tab
-            const session = await getSession();
-            const role = session?.user?.role as 'FAMILY' | 'CAREGIVER' | undefined;
-
-            if (role === 'CAREGIVER') {
-                window.location.href = '/nurse/dashboard';
-            } else {
-                window.location.href = '/user/intake';
-            }
+            // After successful sign-in, always send the user to the home page.
+            // The home page CTA adapts based on their role (family vs caregiver).
+            window.location.href = '/';
         } catch (err) {
             setError('Unexpected error. Please try again.');
         } finally {
